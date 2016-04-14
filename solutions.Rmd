@@ -1,0 +1,334 @@
+---
+title: "Solutions"
+output: html_document
+---
+
+### Problem 1
+
+a. 
+
+```{r}
+democracy <- read.csv(file = "democracy.csv", stringsAsFactors = FALSE)
+
+table(democracy$CIVLIB)
+table(democracy$POLLIB)
+
+democracy <- read.csv(file = "democracy.csv", stringsAsFactors = FALSE, na.strings = ".")
+```
+
+b.
+
+```{r, results='hide'}
+
+library(dplyr)
+library(tidyr)
+library(knitr)
+
+dem_by_variable <- 
+  democracy %>%
+  gather(variable, value, -COUNTRY, -YEAR, -REGION, -CTYNAME)
+dem_by_variable
+
+dem_summary_stats <- dem_by_variable %>%
+  group_by(variable, CTYNAME) %>%
+  summarise(mean = mean(value),
+            median = median(value)) %>%
+  gather(stat, value, -CTYNAME, -variable) %>%
+  ungroup() %>%
+  unite(variable_stat, variable, stat) %>%
+  spread(variable_stat, value)
+```
+
+c.
+
+```{r, results = 'asis'}
+knitr::kable(dem_summary_stats)
+```
+
+d.
+
+```{r}
+library(ggplot2)
+pollib_histogram <- ggplot(democracy, aes(x = POLLIB)) + geom_histogram()
+```
+
+e. 
+
+```{r}
+gdp_histogram <- ggplot(democracy, aes(x = GDPW)) + geom_histogram()
+```
+
+f. 
+
+```{r}
+gdp_log_histogram <- ggplot(democracy, aes(x = log(GDPW))) + geom_histogram()
+```
+g.
+
+```{r}
+lib_v_GDP <- ggplot(democracy, aes(x = POLLIB, y = GDPW)) + geom_boxplot(aes(group = POLLIB))
+```
+
+i.
+
+```{r}
+lib_v_logGDP <- ggplot(democracy, aes(x = POLLIB, y = log(GDPW))) + geom_point()
+```
+
+j. too many countries in non-oil countries?
+
+```{r}
+
+oil_boxplot <- ggplot(democracy, aes(x = factor(OIL), y = log(GDPW))) +
+  geom_boxplot()
+
+oil_boxplot
+```
+
+k.
+
+```{r}
+forty_cath <- democracy[democracy$CATH > 39, ]
+mean(forty_cath$GDPW)
+```
+
+10295.13
+
+l.
+
+```{r}
+sixty_plus <- democracy[democracy$ELF60 > .60, ]
+mean(sixty_plus$GDPW, na.rm = TRUE) 
+```
+
+```{r}
+sixty_below <- democracy[democracy$ELF60 < .60, ]
+mean(sixty_below$GDPW, na.rm = TRUE)
+```
+
+```{r}
+sixty_NA <- democracy[democracy$ELF60 < 0, ]
+mean(sixty_NA$GDPW)
+```
+??
+
+m. 
+
+```{r}
+ed_av <- democracy %>%
+group_by(YEAR) %>%
+summarize(ed_median = median(EDT, na.rm = TRUE))
+
+ed_av_plot <- ggplot(ed_av, aes(x = YEAR, y = ed_median)) + geom_point() + geom_smooth(method = "lm")
+
+ed_av_plot
+```
+
+o.
+
+```{r}
+
+yr_dem_av <- democracy %>%
+group_by(YEAR, REG) %>%
+summarize(ed_median = median(EDT, na.rm = TRUE))
+
+yr_dem_plot <- ggplot(yr_dem_av, 
+                      aes(x = YEAR, 
+                          y = ed_median,
+                          group = REG)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", aes(colour = REG))
+
+yr_dem_plot
+
+```
+n. ???
+
+```{r}
+democracy %>%
+  filter(YEAR == 1985, !is.na(EDT)) %>%
+  arrange(EDT) %>%
+  slice(113/2)
+```
+q.
+
+```{r}
+
+percentiles <- 
+  democracy %>%
+  group_by(NEWC) %>%
+  summarize(ELF60_p25 = quantile(ELF60, probs = .25, na.rm = T),
+            ELF60_p75 = quantile(ELF60, probs = .75, na.rm = T))
+
+kable(percentiles, format = "markdown")
+
+```
+
+### PROBLEM 2
+
+```{r}
+data("anscombe")
+```
+```{r message=FALSE, results='hide'}
+library("dplyr")
+library("tidyr")
+anscombe2 <- anscombe %>%
+	mutate(obs = row_number()) %>%
+	gather(variable_dataset, value, - obs) %>%
+	separate(variable_dataset, c("variable", "dataset"), sep = 1L) %>%
+	spread(variable, value) %>%
+	arrange(dataset, obs)
+
+```
+
+a.
+
+```{r}
+anscombe2 %>%
+  group_by(dataset) %>%
+  summarize(meanx = mean(x, na.rm = TRUE),
+           meany = mean(y, na.rm = TRUE),
+           sdx = sd(x, na.rm = TRUE),
+           sdy = sd(y, na.rm = TRUE),
+           cor_xy = cor(x, y))
+
+anscombe2_reg1 <- lm(x ~ y, data = filter(anscombe2, dataset == 1))
+anscombe2_reg1
+
+anscombe2_reg2 <- lm(x ~ y, data = filter(anscombe2, dataset == 2))
+anscombe2_reg2
+
+anscombe2_reg3 <- lm(x ~ y, data = filter(anscombe2, dataset == 3))
+anscombe2_reg3
+
+anscombe2_reg4 <- lm(x ~ y, data = filter(anscombe2, dataset == 4))
+anscombe2_reg4
+
+```
+You would expect them to be similar according to their coefficients.
+
+b. why are all of these the same?
+
+```{r}
+
+ans_plot_1 <- ggplot(aes(x = x, y = y), 
+                     data = filter(anscombe2, dataset == 1)) + 
+  geom_point() +
+  geom_smooth(method = "lm")
+ans_plot_1
+
+
+ans_plot_2 <- ggplot(aes(x = x, y = y), 
+                     data = filter(anscombe2, dataset == 2)) + 
+  geom_point() +
+  geom_smooth(method = "lm")
+ans_plot_2
+
+
+ans_plot_3 <- ggplot(aes(x = x, y = y), 
+                     data = filter(anscombe2, dataset == 3)) + 
+  geom_point() +
+  geom_smooth(method = "lm")
+ans_plot_3
+
+
+ans_plot_4 <- ggplot(aes(x = x, y = y), 
+                     data = filter(anscombe2, dataset == 4)) + 
+  geom_point() +
+  geom_smooth(method = "lm")
+ans_plot_4
+
+```
+
+
+### PROBLEM 3
+
+
+```{r}
+sprinters <- read.csv("sprinters.csv")
+```
+
+a.
+```{r}
+sprinters_orig <- sprinters[sprinters$year < 2005 & sprinters$olympics == 1, ]
+```
+
+b.
+```{r}
+reg1 <- lm(time ~ year + women, data = sprinters_orig)
+```
+
+For each increase in time, the year is increased by (-0.0126) which means that as time progresses, runners are getting faster. Not really sure what the "women" one means.
+
+```{r}
+reg2 <- lm(time ~ year * women, data = sprinters_orig)
+```
+This regression shows how year and women interact, which means that there is a negative relationship between time and women*year. So, over time, women are getting faster at (-0.0058)?
+
+```{r}
+reg3 <- lm(time ~ year, data = filter(sprinters_orig, women == 1))
+```
+This regression only includes women, and it finds that for each increase in year, the time decreases by (-0.0168).
+```{r}
+reg4 <- lm(time ~ year, data = filter(sprinters_orig, women == 0))
+```
+this regression only includes women, and it finds that for each increase in year, the time decreases by (-0.011), which is a slower rate than that for women.
+
+c. 
+
+```{r}
+
+plot_data <- data.frame(actual = reg1$model$time, predicted = reg1$fitted.values)
+
+
+regs_plot <- ggplot(plot_data, aes(x = actual, y = predicted)) + 
+  geom_point() +
+  geom_smooth(method = "lm") 
+
+regs_plot
+```
+
+d. 
+```{r}
+new_db <- data.frame(women = c(1,0),
+                     year = 2156)
+
+predict(reg1, newdata = new_db)
+
+```
+a 7.775 sprint seems otherworldly and unrealistic. The progression of sprint times is not exactly linear, at some point it will plateau and this model will no longer work.
+
+
+e.
+
+```{r}
+
+RSME_reg <- lm(time ~ year * women, data = sprinters)
+
+mse <- mean(residuals(RSME_reg)^2)
+rmse <- sqrt(mse)
+rmse
+
+olympics_db <- sprinters[sprinters$olympics == 1, ]
+
+world_champ <- sprinters[sprinters$olympics == 0, ]
+
+oly_reg <- lm(time ~ year * women, data = olympics_db)
+
+wc_reg <- lm(time ~ year * women, data = world_champ)
+
+mse_oly <- mean(residuals(oly_reg)^2)
+rmse_oly <- sqrt(mse_oly)
+rmse_oly
+
+mse_wc <- mean(residuals(wc_reg)^2)
+rmse_wc <- sqrt(mse_wc)
+rmse_wc
+
+```
+predict_oly_db <- data.frame(olympics = c(1,0),
+                     year = 2004)
+
+predict(RSME_reg, newdata = predict_oly_db)
+???
+
